@@ -1,16 +1,23 @@
-export default async function handler(req, res) {
-  // Only allow POST
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  // CORS headers — update the origin to your actual Vercel domain
+module.exports = async function handler(req, res) {
+  // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
+  }
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // Debug: confirm env var is present (logs to Vercel, never sent to client)
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  console.log('API key present:', !!apiKey, '| Key prefix:', apiKey ? apiKey.slice(0, 7) : 'MISSING');
+
+  if (!apiKey) {
+    return res.status(500).json({ error: 'ANTHROPIC_API_KEY environment variable is not set' });
   }
 
   try {
@@ -20,7 +27,7 @@ export default async function handler(req, res) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,   // stored securely in Vercel env vars
+        'x-api-key': apiKey,
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
@@ -33,6 +40,7 @@ export default async function handler(req, res) {
 
     if (!response.ok) {
       const err = await response.text();
+      console.error('Anthropic API error:', response.status, err);
       return res.status(response.status).json({ error: err });
     }
 
